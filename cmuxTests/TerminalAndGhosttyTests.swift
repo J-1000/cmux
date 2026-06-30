@@ -2651,6 +2651,23 @@ final class PanelAppearanceBackgroundTests: XCTestCase {
         XCTAssertEqual(appearance.contentBackgroundColor.alphaComponent, 1.0, accuracy: 0.0001)
     }
 
+    func testBackgroundImageKeepsEditorFillClearEvenWithOpaquePanelFill() {
+        var config = GhosttyConfig()
+        config.backgroundColor = NSColor(srgbRed: 0.10, green: 0.20, blue: 0.30, alpha: 1.0)
+        config.backgroundOpacity = 1.0
+        config.backgroundBlur = .disabled
+        config.backgroundImagePath = "/tmp/cmux-wallpaper.png"
+
+        let appearance = PanelAppearance.fromConfig(config, usesTransparentWindow: false)
+
+        XCTAssertFalse(appearance.usesClearContentBackground)
+        XCTAssertTrue(appearance.drawsContentBackground)
+        XCTAssertEqual(appearance.contentBackgroundColor.alphaComponent, 1.0, accuracy: 0.0001)
+        XCTAssertFalse(appearance.drawsEditorContentBackground)
+        XCTAssertEqual(appearance.editorContentBackgroundColor.alphaComponent, 0.0, accuracy: 0.0001)
+        XCTAssertEqual(appearance.backgroundImage?.path, "/tmp/cmux-wallpaper.png")
+    }
+
     func testLowContrastPanelForegroundFallsBackToReadableColor() {
         var config = GhosttyConfig()
         config.backgroundColor = NSColor(hex: "#FFFFFF")!

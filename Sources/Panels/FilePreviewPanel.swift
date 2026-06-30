@@ -1297,6 +1297,23 @@ struct FilePreviewPanelView: View {
         appearance.contentBackgroundColor
     }
 
+    private var editorBackgroundColor: NSColor {
+        appearance.editorContentBackgroundColor
+    }
+
+    @ViewBuilder
+    private var panelBackground: some View {
+        ZStack {
+            Color(nsColor: contentBackgroundColor)
+            if let backgroundImage = appearance.backgroundImage {
+                GhosttyBackgroundImageBackdrop(
+                    settings: backgroundImage,
+                    backgroundOpacity: appearance.terminalBackgroundOpacity
+                )
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if panel.previewMode != .pdf {
@@ -1306,7 +1323,7 @@ struct FilePreviewPanelView: View {
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: contentBackgroundColor))
+        .background(panelBackground)
         .overlay {
             WorkspaceAttentionFlashRingView(opacity: focusFlashOpacity)
         }
@@ -1356,9 +1373,9 @@ struct FilePreviewPanelView: View {
                 FilePreviewTextEditor(
                     panel: panel,
                     isVisibleInUI: isVisibleInUI,
-                    themeBackgroundColor: contentBackgroundColor,
+                    themeBackgroundColor: editorBackgroundColor,
                     themeForegroundColor: themeForegroundColor,
-                    drawsBackground: appearance.drawsContentBackground,
+                    drawsBackground: appearance.drawsEditorContentBackground,
                     wordWrap: fileEditorWordWrap
                 )
             case .pdf:

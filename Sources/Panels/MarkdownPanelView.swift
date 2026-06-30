@@ -54,7 +54,7 @@ struct MarkdownPanelView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(contentBackgroundColor)
+        .background(panelBackground)
         .overlay {
             WorkspaceAttentionFlashRingView(opacity: focusFlashOpacity)
         }
@@ -101,9 +101,9 @@ struct MarkdownPanelView: View {
                 FilePreviewTextEditor(
                     panel: panel,
                     isVisibleInUI: isVisibleInUI,
-                    themeBackgroundColor: appearance.contentBackgroundColor,
+                    themeBackgroundColor: editorBackgroundColor,
                     themeForegroundColor: themeForegroundColor,
-                    drawsBackground: appearance.drawsContentBackground,
+                    drawsBackground: appearance.drawsEditorContentBackground,
                     wordWrap: fileEditorWordWrap
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -191,6 +191,23 @@ struct MarkdownPanelView: View {
 
     private var contentBackgroundColor: Color {
         Color(nsColor: appearance.contentBackgroundColor)
+    }
+
+    private var editorBackgroundColor: NSColor {
+        appearance.editorContentBackgroundColor
+    }
+
+    @ViewBuilder
+    private var panelBackground: some View {
+        ZStack {
+            contentBackgroundColor
+            if let backgroundImage = appearance.backgroundImage {
+                GhosttyBackgroundImageBackdrop(
+                    settings: backgroundImage,
+                    backgroundOpacity: appearance.terminalBackgroundOpacity
+                )
+            }
+        }
     }
 
     private var themeBackgroundColor: NSColor {

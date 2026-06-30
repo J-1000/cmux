@@ -5,6 +5,7 @@ import Bonsplit
 import CmuxAppKitSupportUI
 import CmuxTestSupport
 import CmuxTerminal
+import CmuxTerminalCore
 import CmuxFoundation
 
 /// View for rendering a terminal panel
@@ -310,6 +311,9 @@ struct PanelAppearance {
     let unfocusedOverlayNSColor: NSColor
     let unfocusedOverlayOpacity: Double
     let usesClearContentBackground: Bool
+    let terminalBackgroundColor: NSColor
+    let terminalBackgroundOpacity: Double
+    let backgroundImage: GhosttyBackgroundImageSettings?
 
     var contentBackgroundColor: NSColor {
         usesClearContentBackground ? .clear : backgroundColor
@@ -317,6 +321,14 @@ struct PanelAppearance {
 
     var drawsContentBackground: Bool {
         !usesClearContentBackground
+    }
+
+    var editorContentBackgroundColor: NSColor {
+        backgroundImage == nil ? contentBackgroundColor : .clear
+    }
+
+    var drawsEditorContentBackground: Bool {
+        backgroundImage == nil && drawsContentBackground
     }
 
     static func fromConfig(_ config: GhosttyConfig) -> PanelAppearance {
@@ -345,7 +357,10 @@ struct PanelAppearance {
                 opacity: config.backgroundOpacity,
                 usesGhosttyGlassStyle: config.backgroundBlur.isMacOSGlassStyle,
                 usesTransparentWindow: usesTransparentWindow
-            )
+            ),
+            terminalBackgroundColor: config.backgroundColor,
+            terminalBackgroundOpacity: config.backgroundOpacity,
+            backgroundImage: config.backgroundImage
         )
     }
 
