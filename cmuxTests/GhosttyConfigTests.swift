@@ -726,6 +726,27 @@ final class GhosttyConfigTests: XCTestCase {
         XCTAssertEqual(config.backgroundOpacity, 0.42, accuracy: 0.0001)
     }
 
+    func testParseBackgroundImageSettings() {
+        var config = GhosttyConfig()
+        config.parse(
+            """
+            background-image = images/wallpaper.png
+            background-image-opacity = 0.35
+            background-image-position = bottom-right
+            background-image-fit = cover
+            background-image-repeat = true
+            """,
+            sourceDirectory: "/Users/example/.config/ghostty"
+        )
+
+        XCTAssertEqual(config.backgroundImagePath, "/Users/example/.config/ghostty/images/wallpaper.png")
+        XCTAssertEqual(config.backgroundImageOpacity, 0.35, accuracy: 0.0001)
+        XCTAssertEqual(config.backgroundImagePosition, .bottomRight)
+        XCTAssertEqual(config.backgroundImageFit, .cover)
+        XCTAssertTrue(config.backgroundImageRepeats)
+        XCTAssertEqual(config.backgroundImage?.path, "/Users/example/.config/ghostty/images/wallpaper.png")
+    }
+
     func testParseBackgroundBlurReadsMacOSGlassClear() {
         var config = GhosttyConfig()
         config.parse("background-blur = macos-glass-clear")

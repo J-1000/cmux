@@ -2,6 +2,50 @@ public import AppKit
 public import CmuxFoundation
 public import Foundation
 
+/// Position used for Ghostty-compatible background image rendering.
+public enum GhosttyBackgroundImagePosition: String, Equatable, Sendable {
+    case topLeft = "top-left"
+    case topCenter = "top-center"
+    case topRight = "top-right"
+    case centerLeft = "center-left"
+    case center = "center"
+    case centerRight = "center-right"
+    case bottomLeft = "bottom-left"
+    case bottomCenter = "bottom-center"
+    case bottomRight = "bottom-right"
+}
+
+/// Sizing mode used for Ghostty-compatible background image rendering.
+public enum GhosttyBackgroundImageFit: String, Equatable, Sendable {
+    case contain
+    case cover
+    case stretch
+    case none
+}
+
+/// Resolved Ghostty background image settings used by cmux-owned editor surfaces.
+public struct GhosttyBackgroundImageSettings: Equatable, Sendable {
+    public let path: String
+    public let opacity: Double
+    public let position: GhosttyBackgroundImagePosition
+    public let fit: GhosttyBackgroundImageFit
+    public let repeats: Bool
+
+    public init(
+        path: String,
+        opacity: Double,
+        position: GhosttyBackgroundImagePosition,
+        fit: GhosttyBackgroundImageFit,
+        repeats: Bool
+    ) {
+        self.path = path
+        self.opacity = opacity
+        self.position = position
+        self.fit = fit
+        self.repeats = repeats
+    }
+}
+
 /// The resolved cmux terminal configuration: fonts, colors, theme, scrollback,
 /// and sidebar appearance parsed from the user's ghostty config files plus
 /// cmux's managed defaults.
@@ -85,6 +129,16 @@ public struct GhosttyConfig {
     public var hasBackgroundBlurDirective = false
     /// Whether the `background-blur` directive parsed to a valid value.
     public var hasParsedBackgroundBlur = false
+    /// The configured terminal background image path, or `nil` when unset.
+    public var backgroundImagePath: String?
+    /// The opacity multiplier for the configured terminal background image.
+    public var backgroundImageOpacity: Double = 1.0
+    /// The configured terminal background image position.
+    public var backgroundImagePosition: GhosttyBackgroundImagePosition = .center
+    /// The configured terminal background image fit mode.
+    public var backgroundImageFit: GhosttyBackgroundImageFit = .contain
+    /// Whether the configured terminal background image repeats.
+    public var backgroundImageRepeats = false
     /// The terminal foreground color.
     public var foregroundColor: NSColor = NSColor(hex: "#fdfff1")!
     /// Whether a `foreground` directive was seen.
@@ -480,7 +534,8 @@ public struct GhosttyConfig {
     /// theme immediately.
     public mutating func parse(
         _ contents: String,
-        loadingThemesImmediatelyFor preferredColorScheme: ColorSchemePreference? = nil
+        loadingThemesImmediatelyFor preferredColorScheme: ColorSchemePreference? = nil,
+        sourceDirectory: String? = nil
     ) {
         let lines = contents.components(separatedBy: .newlines)
         for line in lines {
@@ -555,6 +610,27 @@ public struct GhosttyConfig {
                         hasParsedBackgroundBlur = true
                     } else {
                         hasParsedBackgroundBlur = false
+                    }
+                case "background-image":
+                    backgroundImagePath = Self.resolvedBackgroundImagePath(
+                        value,
+                        sourceDirectory: sourceDirectory
+                    )
+                case "background-image-opacity":
+                    if let opacity = Double(value), opacity.isFinite, opacity >= 0 {
+                        backgroundImageOpacity = opacity
+                    }
+                case "background-image-position":
+                    if let position = GhosttyBackgroundImagePosition(rawValue: value) {
+                        backgroundImagePosition = position
+                    }
+                case "background-image-fit":
+                    if let fit = GhosttyBackgroundImageFit(rawValue: value) {
+                        backgroundImageFit = fit
+                    }
+                case "background-image-repeat":
+                    if let repeats = Self.parseBool(value) {
+                        backgroundImageRepeats = repeats
                     }
                 case "foreground":
                     hasForegroundColorDirective = true
@@ -678,12 +754,13 @@ public struct GhosttyConfig {
             loadedConfigPaths.insert(resolved)
         }
 
+        let parentDir = (resolved as NSString).deletingLastPathComponent
         config.parse(
             contents,
-            loadingThemesImmediatelyFor: preferredColorScheme
+            loadingThemesImmediatelyFor: preferredColorScheme,
+            sourceDirectory: parentDir
         )
 
-        let parentDir = (resolved as NSString).deletingLastPathComponent
         collectRecursiveConfigPaths(
             from: contents,
             parentDir: parentDir,
@@ -927,6 +1004,43 @@ public struct GhosttyConfig {
         }
     }
 
+    private static func parseBool(_ value: String) -> Bool? {
+        switch value {
+        case "true", "1", "yes", "on":
+            return true
+        case "false", "0", "no", "off":
+            return false
+        default:
+            return nil
+        }
+    }
+
+    private static func resolvedBackgroundImagePath(_ value: String, sourceDirectory: String?) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let expanded = NSString(string: trimmed).expandingTildeInPath
+        if (expanded as NSString).isAbsolutePath {
+            return (expanded as NSString).standardizingPath
+        }
+        guard let sourceDirectory else {
+            return trimmed
+        }
+        return ((sourceDirectory as NSString).appendingPathComponent(trimmed) as NSString).standardizingPath
+    }
+
+    /// The resolved background image settings, or `nil` when no image path is configured.
+    public var backgroundImage: GhosttyBackgroundImageSettings? {
+        guard let path = backgroundImagePath else { return nil }
+        return GhosttyBackgroundImageSettings(
+            path: path,
+            opacity: backgroundImageOpacity,
+            position: backgroundImagePosition,
+            fit: backgroundImageFit,
+            repeats: backgroundImageRepeats
+        )
+    }
+
     /// Loads the named theme into this config using the process environment and
     /// the main bundle's resources.
     public mutating func loadTheme(_ name: String) {
@@ -953,7 +1067,10 @@ public struct GhosttyConfig {
         let expandedThemePath = NSString(string: resolvedThemeName).expandingTildeInPath
         if (expandedThemePath as NSString).isAbsolutePath,
            let contents = try? String(contentsOfFile: expandedThemePath, encoding: .utf8) {
-            parse(contents)
+            parse(
+                contents,
+                sourceDirectory: (expandedThemePath as NSString).deletingLastPathComponent
+            )
             return
         }
 
@@ -964,7 +1081,10 @@ public struct GhosttyConfig {
                 bundleResourceURL: bundleResourceURL
             ) {
                 if let contents = try? String(contentsOfFile: path, encoding: .utf8) {
-                    parse(contents)
+                    parse(
+                        contents,
+                        sourceDirectory: (path as NSString).deletingLastPathComponent
+                    )
                     return
                 }
             }
