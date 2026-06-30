@@ -88,7 +88,7 @@ Sidebar shows git branch, linked PR status/number, working directory, listening 
 - **Custom commands** — Define project-specific actions in [`cmux.json`](https://cmux.com/docs/custom-commands) that launch from the command palette
 - **Programmable** — CLI and socket API to create workspaces, split panes, send keystrokes, and automate the browser
 - **Native macOS app** — Built with Swift and AppKit, not Electron. Fast startup, low memory.
-- **Ghostty compatible** — Reads your existing `~/.config/ghostty/config` for themes, fonts, and colors
+- **Ghostty compatible** — Reads your existing `~/.config/ghostty/config` for themes, fonts, colors, background opacity, and images
 - **GPU-accelerated** — Powered by libghostty for smooth rendering
 - **Keyboard shortcuts** — [Extensive shortcuts](https://cmux.com/docs/keyboard-shortcuts) for workspaces, splits, browser, and more
 - **Open source** — Free and GPL-licensed
@@ -367,7 +367,7 @@ Terminal keybindings are read from your Ghostty config file (`~/.config/ghostty/
 
 ### Can I customize cmux?
 
-Yes. Terminal rendering uses your Ghostty config, so themes, fonts, colors, and cursor carry over directly. cmux's own settings in `~/.config/cmux/cmux.json` control the sidebar, tab bar, split panes, and behavior, and every [keyboard shortcut](https://cmux.com/docs/keyboard-shortcuts) is editable. See [configuration](https://cmux.com/docs/configuration).
+Yes. Terminal rendering uses your Ghostty config, so themes, fonts, colors, cursor, background opacity, and background images carry over directly. cmux's own settings in `~/.config/cmux/cmux.json` control the sidebar, tab bar, split panes, and behavior, and every [keyboard shortcut](https://cmux.com/docs/keyboard-shortcuts) is editable. See [configuration](https://cmux.com/docs/configuration).
 
 ### Are my sessions saved?
 
