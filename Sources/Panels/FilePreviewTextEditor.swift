@@ -1,5 +1,6 @@
 import AppKit
 import CmuxFoundation
+import CmuxTerminalCore
 import SwiftUI
 
 @MainActor
@@ -11,6 +12,149 @@ protocol FilePreviewTextEditingPanel: AnyObject {
     func updateTextContent(_ nextContent: String)
     @discardableResult
     func saveTextContent() -> Task<Void, Never>?
+}
+
+struct GhosttyBackgroundImageBackdrop: NSViewRepresentable {
+    let settings: GhosttyBackgroundImageSettings
+    let backgroundOpacity: Double
+
+    func makeNSView(context: Context) -> GhosttyBackgroundImageBackdropView {
+        let view = GhosttyBackgroundImageBackdropView()
+        view.update(settings: settings, backgroundOpacity: backgroundOpacity)
+        return view
+    }
+
+    func updateNSView(_ view: GhosttyBackgroundImageBackdropView, context: Context) {
+        view.update(settings: settings, backgroundOpacity: backgroundOpacity)
+    }
+}
+
+final class GhosttyBackgroundImageBackdropView: NSView {
+    private var settings: GhosttyBackgroundImageSettings?
+    private var backgroundOpacity: Double = 1
+    private var loadedImagePath: String?
+    private var image: NSImage?
+
+    override var isOpaque: Bool { false }
+
+    func update(settings nextSettings: GhosttyBackgroundImageSettings, backgroundOpacity nextBackgroundOpacity: Double) {
+        let shouldReloadImage = loadedImagePath != nextSettings.path
+        let shouldRedraw = settings != nextSettings ||
+            abs(backgroundOpacity - nextBackgroundOpacity) > 0.0001
+
+        settings = nextSettings
+        backgroundOpacity = nextBackgroundOpacity
+
+        if shouldReloadImage {
+            loadedImagePath = nextSettings.path
+            image = NSImage(contentsOfFile: nextSettings.path)
+        }
+        if shouldReloadImage || shouldRedraw {
+            needsDisplay = true
+        }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let settings,
+              let image,
+              bounds.width > 0,
+              bounds.height > 0 else { return }
+
+        let opacity = Self.clampedOpacity(backgroundOpacity * settings.opacity)
+        guard opacity > 0 else { return }
+
+        let imageSize = image.size
+        guard imageSize.width > 0, imageSize.height > 0 else { return }
+
+        let tileSize = Self.tileSize(for: settings.fit, imageSize: imageSize, bounds: bounds)
+        guard tileSize.width > 0, tileSize.height > 0 else { return }
+
+        if settings.repeats {
+            drawRepeated(image: image, tileSize: tileSize, opacity: opacity, position: settings.position)
+        } else {
+            let destination = Self.destinationRect(for: tileSize, in: bounds, position: settings.position)
+            image.draw(in: destination, from: .zero, operation: .sourceOver, fraction: opacity)
+        }
+    }
+
+    private func drawRepeated(
+        image: NSImage,
+        tileSize: NSSize,
+        opacity: CGFloat,
+        position: GhosttyBackgroundImagePosition
+    ) {
+        let anchor = Self.destinationRect(for: tileSize, in: bounds, position: position)
+        var startX = anchor.minX
+        var startY = anchor.minY
+        while startX > bounds.minX {
+            startX -= tileSize.width
+        }
+        while startY > bounds.minY {
+            startY -= tileSize.height
+        }
+
+        var y = startY
+        while y < bounds.maxY {
+            var x = startX
+            while x < bounds.maxX {
+                let destination = NSRect(origin: NSPoint(x: x, y: y), size: tileSize)
+                image.draw(in: destination, from: .zero, operation: .sourceOver, fraction: opacity)
+                x += tileSize.width
+            }
+            y += tileSize.height
+        }
+    }
+
+    private static func clampedOpacity(_ opacity: Double) -> CGFloat {
+        CGFloat(max(0, min(1, opacity)))
+    }
+
+    private static func tileSize(
+        for fit: GhosttyBackgroundImageFit,
+        imageSize: NSSize,
+        bounds: NSRect
+    ) -> NSSize {
+        switch fit {
+        case .contain:
+            let scale = min(bounds.width / imageSize.width, bounds.height / imageSize.height)
+            return NSSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        case .cover:
+            let scale = max(bounds.width / imageSize.width, bounds.height / imageSize.height)
+            return NSSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        case .stretch:
+            return bounds.size
+        case .none:
+            return imageSize
+        }
+    }
+
+    private static func destinationRect(
+        for size: NSSize,
+        in bounds: NSRect,
+        position: GhosttyBackgroundImagePosition
+    ) -> NSRect {
+        let x: CGFloat
+        switch position {
+        case .topLeft, .centerLeft, .bottomLeft:
+            x = bounds.minX
+        case .topCenter, .center, .bottomCenter:
+            x = bounds.midX - size.width / 2
+        case .topRight, .centerRight, .bottomRight:
+            x = bounds.maxX - size.width
+        }
+
+        let y: CGFloat
+        switch position {
+        case .bottomLeft, .bottomCenter, .bottomRight:
+            y = bounds.minY
+        case .centerLeft, .center, .centerRight:
+            y = bounds.midY - size.height / 2
+        case .topLeft, .topCenter, .topRight:
+            y = bounds.maxY - size.height
+        }
+
+        return NSRect(origin: NSPoint(x: x, y: y), size: size)
+    }
 }
 
 struct FilePreviewTextEditor<PanelModel>: NSViewRepresentable where PanelModel: ObservableObject & FilePreviewTextEditingPanel {
