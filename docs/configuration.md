@@ -1,4 +1,32 @@
-# cmux.json settings
+# Configuration
+
+cmux reads two configuration files:
+
+- `~/.config/ghostty/config` for terminal appearance, fonts, colors, cursor, and terminal keybindings.
+- `~/.config/cmux/cmux.json` for cmux app behavior such as window, sidebar, automation, and pane settings.
+
+## Ghostty background transparency and images
+
+Terminal rendering uses your Ghostty config. cmux also applies the same background color, opacity, and image settings to editor-backed panels, such as file previews and Markdown text editing, so those panels can match your terminal theme.
+
+Put Ghostty settings in `~/.config/ghostty/config`:
+
+```conf
+background = #f8f8f8
+background-opacity = 0.75
+
+background-image = ~/Pictures/background.png
+background-image-opacity = 0.35
+background-image-position = center
+background-image-fit = cover
+background-image-repeat = false
+```
+
+Supported image fit values are `cover`, `contain`, `stretch`, and `none`. Supported positions are `center`, `top-left`, `top-center`, `top-right`, `center-left`, `center-right`, `bottom-left`, `bottom-center`, and `bottom-right`.
+
+Relative `background-image` paths resolve relative to the Ghostty config or theme file that declares them.
+
+## cmux.json settings
 
 Global app preferences live in `~/.config/cmux/cmux.json`.
 
